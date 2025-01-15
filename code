@@ -1,0 +1,87 @@
+module vending_machine(clk,coin1,coin2,select,buy,load,money,products,outofstock);
+ // EXERCISE : explain the logic of vending machine
+ input clk; input coin1; //25 cents
+ input coin2; //1 dollar (100 cents)
+ input [3:0] select; input buy; input [3:0] load;
+ output signed [11:0] money; 
+ output reg [3:0] products=0;
+ output reg [3:0] outofstock=0;
+ 
+ reg signed [7:0] encrypted_money =8'b00000000;
+ reg coin1_prev=0,coin2_prev=0; reg buy_prev=0;
+ reg [3:0] stock1=4'b1010; reg [3:0] stock2=4'b1010;
+ reg [3:0] stock3=4'b1010; reg [3:0] stock4=4'b1010;
+ 
+ assign money = encrypted_money * 25;
+ 
+ wire signed[7:0] update_emoney;  //,emoney
+ reg signed [3:0] update_amount=0;
+  
+ //assign emoney = encrypted_money;
+ assign update_emoney = encrypted_money + update_amount;
+ //always @* begin encrypted_money = encrypted_money + update_amount; end 
+ 
+ always @(*)
+ begin
+ update_amount <=0;
+ if (coin1_prev == 1'b0 && coin1 == 1'b1)       begin  update_amount <= 1; end    
+ else if ( coin2_prev == 1'b0 && coin2 == 1'b1) begin  update_amount <= 4; end
+ else if ( buy_prev == 1'b0 && buy == 1'b1)                                
+    begin
+	 case (select)
+	 4'b0001: if (encrypted_money >= 1 && stock1 > 0) begin update_amount <= -1; end
+	 4'b0010: if (encrypted_money >= 3 && stock2 > 0) begin update_amount <= -3; end
+	 4'b0100: if (encrypted_money >= 6 && stock3 > 0) begin update_amount <= -6; end
+	 4'b1000: if (encrypted_money >= 8 && stock4 > 0) begin update_amount <= -8; end
+	 endcase
+	 end
+ end
+ 
+ always @ (posedge clk) 
+ begin
+ coin1_prev <= coin1; coin2_prev <= coin2; buy_prev <= buy;
+ 
+ if (coin1_prev == 1'b0 && coin1 == 1'b1)      begin  encrypted_money <= update_emoney;   end      //...  
+                                                        //encrypted_money <= encrypted_money+1 
+ else if ( coin2_prev == 1'b0 && coin2 == 1'b1) begin  encrypted_money <= update_emoney;    end   //..e
+                                                        //encrypted_money <= encrypted_money+4 
+ else if ( buy_prev == 1'b0 && buy == 1'b1)                                
+    begin
+	 case (select)
+	 4'b0001: if (encrypted_money >= 1 && stock1 > 0) begin
+	 products[0] <= 1'b1; stock1 <= stock1 - 1'b1;    encrypted_money <= update_emoney;   
+	                                              //encrypted_money <= encrypted_money-1 
+	 end
+	 4'b0010: if (encrypted_money >= 3 && stock2 > 0) begin 
+	 products[1] <= 1'b1; stock2 <= stock2 - 1'b1;   encrypted_money <= update_emoney; 
+	                                               //encrypted_money <= encrypted_money-3 
+	 end
+	 4'b0100: if (encrypted_money >= 6 && stock3 > 0) begin
+	 products[2] <= 1'b1; stock3 <= stock3 - 1'b1;   encrypted_money <= update_emoney;
+	                                               //encrypted_money <= encrypted_money-6 
+	 end
+	 4'b1000: if (encrypted_money >= 8 && stock4 > 0) begin
+	 products[3] <= 1'b1; stock4 <= stock4 - 1'b1;    encrypted_money <= update_emoney;  
+	                                               //encrypted_money <= encrypted_money-8 
+	 end
+	 endcase
+	 end
+ else if ( buy_prev == 1'b1 && buy == 1'b0)                           
+	 begin
+	 //products[0] <= 1'b0; products[1] <= 1'b0; products[2] <= 1'b0; products[3] <= 1'b0;
+	 products <= 0;
+	 end
+ else begin
+	 if (stock1 == 4'b0) outofstock[0] <= 1'b1; else outofstock[0] <= 1'b0;
+	 if (stock2 == 4'b0) outofstock[1] <= 1'b1; else outofstock[1] <= 1'b0;
+	 if (stock3 == 4'b0) outofstock[2] <= 1'b1; else outofstock[2] <= 1'b0;
+	 if (stock4 == 4'b0) outofstock[3] <= 1'b1; else outofstock[3] <= 1'b0;
+	 case (load)
+	 4'b0001: stock1 <= 4'b1111;
+	 4'b0010: stock2 <= 4'b1111;
+	 4'b0100: stock3 <= 4'b1111;
+	 4'b1000: stock4 <= 4'b1111;
+	 endcase
+	 end
+	 end
+endmodule
